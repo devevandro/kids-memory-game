@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
@@ -9,12 +7,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
-import dynamic from "next/dynamic"
+import Confetti from "react-confetti"
 
-// Dynamically import Confetti to avoid SSR issues
-const Confetti = dynamic(() => import("react-confetti").then((mod) => mod.default), {
-  ssr: false,
-})
+interface Card {
+  id: number
+  name: string
+  emoji: string
+  isFlipped: boolean
+  isMatched: boolean
+}
+
+type ThemeKey = "animals" | "food" | "cars" | "flowers" | "people"
 
 export default function MemoryGame() {
   return (
@@ -25,25 +28,23 @@ export default function MemoryGame() {
 }
 
 function GameContent() {
-  const [cards, setCards] = useState([])
-  const [flippedCards, setFlippedCards] = useState([])
-  const [matchedPairs, setMatchedPairs] = useState([])
+  const [cards, setCards] = useState<Card[]>([])
+  const [flippedCards, setFlippedCards] = useState<number[]>([])
+  const [matchedPairs, setMatchedPairs] = useState<number[]>([])
   const [currentPlayer, setCurrentPlayer] = useState(1)
   const [scores, setScores] = useState({ player1: 0, player2: 0 })
   const [gameOver, setGameOver] = useState(false)
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 })
   const [showConfetti, setShowConfetti] = useState(false)
 
-  // Player setup state
   const [showSetupModal, setShowSetupModal] = useState(true)
   const [playerCount, setPlayerCount] = useState("2")
   const [player1Name, setPlayer1Name] = useState("Player 1")
   const [player2Name, setPlayer2Name] = useState("Player 2")
   const [gameStarted, setGameStarted] = useState(false)
-  const [selectedTheme, setSelectedTheme] = useState("animals")
+  const [selectedTheme, setSelectedTheme] = useState<ThemeKey>("animals")
 
-  // Theme options
-  const themeOptions = {
+  const themeOptions: Record<ThemeKey, { name: string; emoji: string }[]> = {
     animals: [
       { name: "lion", emoji: "🦁" },
       { name: "dog", emoji: "🐶" },
@@ -89,7 +90,6 @@ function GameContent() {
   const partyEmojis = ["🎉", "🎊"]
 
   useEffect(() => {
-    // Set window size for confetti
     const updateWindowSize = () => {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight })
     }
@@ -107,10 +107,8 @@ function GameContent() {
   }, [gameStarted, selectedTheme])
 
   const initializeGame = () => {
-    // Get the current theme icons
     const themeIcons = themeOptions[selectedTheme]
 
-    // Create pairs of cards with the selected theme icons
     const cardPairs = [...themeIcons, ...themeIcons].map((item, index) => ({
       id: index,
       name: item.name,
@@ -119,7 +117,6 @@ function GameContent() {
       isMatched: false,
     }))
 
-    // Shuffle the cards
     const shuffledCards = cardPairs.sort(() => Math.random() - 0.5)
 
     setCards(shuffledCards)
@@ -131,28 +128,23 @@ function GameContent() {
     setShowConfetti(false)
   }
 
-  const handleCardClick = (cardId) => {
-    // Prevent clicking if already two cards are flipped or the card is already flipped/matched
+  const handleCardClick = (cardId: number) => {
     if (flippedCards.length === 2 || flippedCards.includes(cardId) || matchedPairs.includes(cardId) || gameOver) {
       return
     }
 
-    // Flip the card
     const newFlippedCards = [...flippedCards, cardId]
     setFlippedCards(newFlippedCards)
 
-    // If two cards are flipped, check for a match
     if (newFlippedCards.length === 2) {
       const [firstCardId, secondCardId] = newFlippedCards
       const firstCard = cards.find((card) => card.id === firstCardId)
       const secondCard = cards.find((card) => card.id === secondCardId)
 
-      if (firstCard.name === secondCard.name) {
-        // Match found
+      if (firstCard && secondCard && firstCard.name === secondCard.name) {
         const newMatchedPairs = [...matchedPairs, firstCardId, secondCardId]
         setMatchedPairs(newMatchedPairs)
 
-        // Update score for current player
         const newScores = { ...scores }
         if (currentPlayer === 1) {
           newScores.player1 += 1
@@ -161,20 +153,16 @@ function GameContent() {
         }
         setScores(newScores)
 
-        // Clear flipped cards
         setFlippedCards([])
 
-        // Check if game is over
         if (newMatchedPairs.length === cards.length) {
           setGameOver(true)
           setShowConfetti(true)
-          // Hide confetti after 8 seconds
           setTimeout(() => {
             setShowConfetti(false)
           }, 8000)
         }
       } else {
-        // No match, switch player after a delay
         setTimeout(() => {
           setFlippedCards([])
           if (playerCount === "2") {
@@ -199,9 +187,8 @@ function GameContent() {
     setGameStarted(false)
   }
 
-  // Get theme name for display
-  const getThemeDisplayName = (themeKey) => {
-    const names = {
+  const getThemeDisplayName = (themeKey: ThemeKey) => {
+    const names: Record<ThemeKey, string> = {
       animals: "Animals",
       food: "Food",
       cars: "Cars",
@@ -223,7 +210,6 @@ function GameContent() {
         />
       )}
 
-      {/* Player Setup Modal */}
       <Dialog open={showSetupModal} onOpenChange={setShowSetupModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -234,9 +220,9 @@ function GameContent() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="theme-select">Choose Theme</Label>
-              <Tabs defaultValue={selectedTheme} onValueChange={setSelectedTheme} className="w-full">
+              <Tabs defaultValue={selectedTheme} onValueChange={(value) => setSelectedTheme(value as ThemeKey)} className="w-full">
                 <TabsList className="grid grid-cols-5 mb-2">
-                  {Object.keys(themeOptions).map((theme) => (
+                  {(Object.keys(themeOptions) as ThemeKey[]).map((theme) => (
                     <TabsTrigger key={theme} value={theme}>
                       {getThemeDisplayName(theme)}
                     </TabsTrigger>
@@ -380,7 +366,6 @@ function GameContent() {
           ))}
         </div>
 
-        {/* Game Over Modal */}
         {gameOver && (
           <div className="fixed inset-0 flex items-center justify-center z-50">
             <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setGameOver(false)}></div>
